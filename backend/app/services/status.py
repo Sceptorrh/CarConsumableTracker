@@ -1,6 +1,9 @@
-"""Derived, automation-friendly status for a vehicle (tyres, oil, due maintenance, costs)."""
+"""Derived, automation-friendly status for a vehicle (tyres, oil, maintenance, costs).
 
-from datetime import date, timedelta
+The app reports facts only; scheduling decisions such as "maintenance due" are left to
+Home Assistant, which can compare ``next_due_on`` / ``next_due_km`` with today / the odometer."""
+
+from datetime import date
 from decimal import Decimal
 
 from sqlalchemy import select
@@ -17,7 +20,7 @@ from app.models import (
     Vehicle,
     WheelPosition,
 )
-from app.schemas import CostSummary, MaintenanceDue, OilStatus, TyreStatus, VehicleStatus
+from app.schemas import CostSummary, MaintenanceLatest, OilStatus, TyreStatus, VehicleStatus
 
 ROAD_POSITIONS = {
     WheelPosition.front_left,
@@ -104,44 +107,26 @@ def oil_status(db: Session, vehicle: Vehicle) -> OilStatus:
     )
 
 
-def maintenance_due(
-    db: Session, vehicle: Vehicle, settings: Settings, today: date
-) -> list[MaintenanceDue]:
-    """Reminders from the *latest* record per category that has a next-due date or km."""
+def latest_maintenance(db: Session, vehicle: Vehicle) -> dict[MaintenanceCategory, MaintenanceLatest]:
+    """Latest record per category, so consumers can see when something was last done."""
     records = db.scalars(
         select(MaintenanceRecord)
         .where(MaintenanceRecord.vehicle_id == vehicle.id)
         .order_by(MaintenanceRecord.performed_on.desc(), MaintenanceRecord.id.desc())
     ).all()
-    seen: set[MaintenanceCategory] = set()
-    result: list[MaintenanceDue] = []
-    soon_date = today + timedelta(days=settings.maintenance_due_soon_days)
+    result: dict[MaintenanceCategory, MaintenanceLatest] = {}
     for r in records:
-        if r.category in seen:
-            continue
-        seen.add(r.category)
-        if r.next_due_on is None and r.next_due_km is None:
-            continue
-        odo = vehicle.odometer_km
-        overdue = (r.next_due_on is not None and r.next_due_on <= today) or (
-            r.next_due_km is not None and odo is not None and odo >= r.next_due_km
+        result.setdefault(
+            r.category,
+            MaintenanceLatest(
+                record_id=r.id,
+                title=r.title,
+                performed_on=r.performed_on,
+                odometer_km=r.odometer_km,
+                next_due_on=r.next_due_on,
+                next_due_km=r.next_due_km,
+            ),
         )
-        soon = (r.next_due_on is not None and r.next_due_on <= soon_date) or (
-            r.next_due_km is not None
-            and odo is not None
-            and odo >= r.next_due_km - settings.maintenance_due_soon_km
-        )
-        if overdue or soon:
-            result.append(
-                MaintenanceDue(
-                    record_id=r.id,
-                    title=r.title,
-                    category=r.category,
-                    next_due_on=r.next_due_on,
-                    next_due_km=r.next_due_km,
-                    state="overdue" if overdue else "due_soon",
-                )
-            )
     return result
 
 
@@ -180,12 +165,10 @@ def vehicle_status(
         select(TyreSet).where(TyreSet.vehicle_id == vehicle.id, TyreSet.is_mounted.is_(True))
     ).first()
     tyres = tyre_status(db, mounted, settings) if mounted else None
-    due = maintenance_due(db, vehicle, settings, today)
 
     alerts: list[str] = []
     if tyres and tyres.state in ("warning", "critical"):
         alerts.append(f"tread_{tyres.state}")
-    alerts += [f"maintenance_{d.state}:{d.category.value}" for d in due]
 
     return VehicleStatus(
         vehicle_id=vehicle.id,
@@ -194,7 +177,7 @@ def vehicle_status(
         odometer_km=vehicle.odometer_km,
         tyres=tyres,
         oil=oil_status(db, vehicle),
-        maintenance_due=due,
+        maintenance=latest_maintenance(db, vehicle),
         costs=cost_summary(db, vehicle, settings, today),
         alerts=alerts,
     )

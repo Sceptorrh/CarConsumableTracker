@@ -217,13 +217,15 @@ class OilStatus(BaseModel):
     consumption_l_per_1000km: float | None
 
 
-class MaintenanceDue(BaseModel):
+class MaintenanceLatest(BaseModel):
+    """Most recent maintenance record of one category, with its (raw) next-due values."""
+
     record_id: int
     title: str
-    category: MaintenanceCategory
+    performed_on: date
+    odometer_km: int | None
     next_due_on: date | None
     next_due_km: int | None
-    state: str  # "due_soon" | "overdue"
 
 
 class CostSummary(BaseModel):
@@ -240,6 +242,6 @@ class VehicleStatus(BaseModel):
     odometer_km: int | None
     tyres: TyreStatus | None
     oil: OilStatus
-    maintenance_due: list[MaintenanceDue]
+    maintenance: dict[MaintenanceCategory, MaintenanceLatest]
     costs: CostSummary
     alerts: list[str]

@@ -75,25 +75,35 @@ def test_oil_since_last_change(client, vehicle):
     assert oil["consumption_l_per_1000km"] == 0.25
 
 
-def test_maintenance_due_and_costs(client, vehicle):
+def test_maintenance_latest_and_costs(client, vehicle):
+    """The app reports raw next-due values; it never decides due/overdue itself."""
     today = date.today()
+    past = (today - timedelta(days=1)).isoformat()
     client.post(url(vehicle, "/maintenance"), json={
-        "performed_on": (today - timedelta(days=365)).isoformat(), "category": "inspection",
-        "title": "APK", "cost": "50.00", "next_due_on": (today - timedelta(days=1)).isoformat(),
+        "performed_on": (today - timedelta(days=730)).isoformat(), "category": "inspection",
+        "title": "APK 2024", "cost": "50.00",
     })
     client.post(url(vehicle, "/maintenance"), json={
-        "performed_on": today.isoformat(), "category": "service", "title": "Service",
-        "cost": "300.00", "next_due_km": 50500,
+        "performed_on": (today - timedelta(days=365)).isoformat(), "category": "inspection",
+        "title": "APK 2025", "cost": "50.00", "next_due_on": past,
+    })
+    client.post(url(vehicle, "/maintenance"), json={
+        "performed_on": today.isoformat(), "odometer_km": 50000, "category": "service",
+        "title": "Service", "cost": "300.00", "next_due_km": 50500,
     })
     client.post(url(vehicle, "/tyre-sets"), json={"name": "S", "tyre_type": "summer", "purchase_cost": "400", "purchased_on": today.isoformat()})
 
     status = client.get(url(vehicle, "/status")).json()
-    due = {d["category"]: d["state"] for d in status["maintenance_due"]}
-    assert due == {"inspection": "overdue", "service": "due_soon"}
-    costs = status["costs"]
-    assert float(costs["total"]) == 750.0
-    assert float(costs["by_category"]["tyres"]) == 400.0
+    maint = status["maintenance"]
+    assert maint["inspection"]["title"] == "APK 2025"
+    assert maint["inspection"]["next_due_on"] == past
+    assert maint["service"]["next_due_km"] == 50500
+    assert "state" not in maint["inspection"]
+    assert status["alerts"] == []  # overdue date does not produce an alert
 
+    costs = status["costs"]
+    assert float(costs["total"]) == 800.0
+    assert float(costs["by_category"]["tyres"]) == 400.0
     assert len(client.get("/api/v1/status").json()) == 1
 
 

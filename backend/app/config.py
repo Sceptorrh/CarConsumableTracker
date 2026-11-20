@@ -20,10 +20,6 @@ class Settings(BaseSettings):
     tread_warning_winter_mm: float = 4.0
     tread_critical_mm: float = 1.6
 
-    # Maintenance items due within this window are reported as "due_soon".
-    maintenance_due_soon_days: int = 30
-    maintenance_due_soon_km: int = 1000
-
     # Outbound events: Home Assistant webhook URL, e.g.
     # http://homeassistant.local:8123/api/webhook/car_consumable_tracker
     ha_webhook_url: str | None = None

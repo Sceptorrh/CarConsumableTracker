@@ -39,12 +39,33 @@ rest:
         device_class: monetary
         json_attributes_path: "$.costs"
         json_attributes: [total, by_category]
-    binary_sensor:
-      - name: "Golf maintenance due"
-        unique_id: cct_1_maintenance_due
+      - name: "Golf next inspection"
+        unique_id: cct_1_next_inspection
+        device_class: date
+        value_template: "{{ value_json.maintenance.inspection.next_due_on if value_json.maintenance.inspection is defined else none }}"
+      - name: "Golf next service km"
+        unique_id: cct_1_next_service_km
+        unit_of_measurement: km
+        value_template: "{{ value_json.maintenance.service.next_due_km if value_json.maintenance.service is defined else none }}"
+        json_attributes: [maintenance]
+
+# "Due" logic lives in Home Assistant, not in CCT. Tune the margins to taste.
+template:
+  - binary_sensor:
+      - name: "Golf inspection due"
+        unique_id: cct_1_inspection_due
         device_class: problem
-        value_template: "{{ value_json.maintenance_due | length > 0 }}"
-        json_attributes: [maintenance_due, alerts]
+        state: >-
+          {% set d = states('sensor.golf_next_inspection') %}
+          {{ d not in ['unknown', 'unavailable', 'none']
+             and (as_datetime(d).date() - now().date()).days <= 30 }}
+      - name: "Golf service due"
+        unique_id: cct_1_service_due
+        device_class: problem
+        state: >-
+          {% set due = states('sensor.golf_next_service_km') | int(0) %}
+          {% set odo = states('sensor.golf_odometer') | int(0) %}
+          {{ due > 0 and odo >= due - 1000 }}
 
 # Push mileage from a car integration (or a manual input_number) into CCT.
 rest_command:

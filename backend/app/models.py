@@ -202,7 +202,8 @@ class MaintenanceRecord(TimestampMixin, Base):
     description: Mapped[str | None] = mapped_column(Text)
     cost: Mapped[Decimal | None] = mapped_column(Money)
     provider: Mapped[str | None] = mapped_column(String(200))  # garage / "DIY"
-    # Optional reminder for the next occurrence; drives "due"/"overdue" status and automations.
+    # Optional next occurrence. Stored and exposed as-is; deciding "due"/"overdue" is up to
+    # the consumer (e.g. Home Assistant automations).
     next_due_on: Mapped[date | None] = mapped_column(Date)
     next_due_km: Mapped[int | None] = mapped_column(Integer)
     notes: Mapped[str | None] = mapped_column(Text)

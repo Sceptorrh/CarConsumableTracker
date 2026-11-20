@@ -1,0 +1,15 @@
+services:
+  cct:
+    build: ./backend
+    container_name: car-consumable-tracker
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/data
+    environment:
+      # Strongly recommended once Home Assistant talks to it:
+      # CCT_API_TOKEN: change-me
+      # Push events (tread_low, oil_added, ...) to a Home Assistant webhook automation:
+      # CCT_HA_WEBHOOK_URL: http://homeassistant.local:8123/api/webhook/car_consumable_tracker
+      CCT_CURRENCY: EUR

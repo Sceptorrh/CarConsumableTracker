@@ -1,0 +1,88 @@
+# Example Home Assistant package for Car Consumable Tracker (CCT).
+# Copy to <config>/packages/ and enable packages in configuration.yaml:
+#   homeassistant:
+#     packages: !include_dir_named packages
+# In secrets.yaml add:  cct_auth: "Bearer <your CCT_API_TOKEN>"
+# Replace cct.local:8000 and vehicle id 1 / "golf" with your own values.
+
+rest:
+  - resource: http://cct.local:8000/api/v1/vehicles/1/status
+    headers:
+      Authorization: !secret cct_auth
+    scan_interval: 900
+    sensor:
+      - name: "Golf odometer"
+        unique_id: cct_1_odometer
+        value_template: "{{ value_json.odometer_km }}"
+        unit_of_measurement: km
+        device_class: distance
+        state_class: total_increasing
+      - name: "Golf tyre tread min"
+        unique_id: cct_1_tread_min
+        value_template: "{{ value_json.tyres.min_depth_mm if value_json.tyres else none }}"
+        unit_of_measurement: mm
+        json_attributes_path: "$.tyres"
+        json_attributes: [name, tyre_type, state, depths_mm, last_measured_on]
+      - name: "Golf tyre state"
+        unique_id: cct_1_tyre_state
+        value_template: "{{ value_json.tyres.state if value_json.tyres else 'unknown' }}"
+      - name: "Golf oil added since change"
+        unique_id: cct_1_oil_added
+        value_template: "{{ value_json.oil.added_since_change_l }}"
+        unit_of_measurement: L
+        json_attributes_path: "$.oil"
+        json_attributes: [last_change_on, km_since_change, consumption_l_per_1000km]
+      - name: "Golf costs this year"
+        unique_id: cct_1_costs_year
+        value_template: "{{ value_json.costs.this_year | float }}"
+        unit_of_measurement: EUR
+        device_class: monetary
+        json_attributes_path: "$.costs"
+        json_attributes: [total, by_category]
+    binary_sensor:
+      - name: "Golf maintenance due"
+        unique_id: cct_1_maintenance_due
+        device_class: problem
+        value_template: "{{ value_json.maintenance_due | length > 0 }}"
+        json_attributes: [maintenance_due, alerts]
+
+# Push mileage from a car integration (or a manual input_number) into CCT.
+rest_command:
+  cct_update_odometer:
+    url: "http://cct.local:8000/api/v1/vehicles/{{ vehicle_id }}/odometer"
+    method: POST
+    headers:
+      Authorization: !secret cct_auth
+    content_type: "application/json"
+    payload: '{"odometer_km": {{ km | int }}, "source": "integration"}'
+
+automation:
+  # Receives events CCT sends when CCT_HA_WEBHOOK_URL points at
+  # http://<ha>:8123/api/webhook/car_consumable_tracker
+  - alias: "CCT: notify on low tread"
+    triggers:
+      - trigger: webhook
+        webhook_id: car_consumable_tracker
+        allowed_methods: [POST]
+        local_only: true
+    conditions:
+      - condition: template
+        value_template: "{{ trigger.json.type == 'tread_low' }}"
+    actions:
+      - action: persistent_notification.create
+        data:
+          title: "Tyre tread {{ trigger.json.data.state }}"
+          message: >-
+            Vehicle {{ trigger.json.vehicle_id }}: lowest tread is
+            {{ trigger.json.data.min_depth_mm }} mm.
+
+  # Example: sync the odometer nightly from a car integration sensor.
+  # - alias: "CCT: sync odometer"
+  #   triggers:
+  #     - trigger: time
+  #       at: "03:00:00"
+  #   actions:
+  #     - action: rest_command.cct_update_odometer
+  #       data:
+  #         vehicle_id: 1
+  #         km: "{{ states('sensor.golf_mileage') }}"

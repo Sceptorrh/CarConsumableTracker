@@ -49,9 +49,11 @@ def test_tyre_sets_mounting_and_tread(client, vehicle, published):
     assert status["odometer_km"] == 52500
     assert status["tyres"]["name"] == "Winter"
     assert status["tyres"]["min_depth_mm"] == 3.8
-    assert status["tyres"]["state"] == "warning"  # winter threshold is 4.0 mm
-    assert "tread_warning" in status["alerts"]
-    assert {"tyres_mounted", "tread_measured", "tread_low"} <= {e.type for e in published.events}
+    assert "state" not in status["tyres"]  # judging tread depth is up to Home Assistant
+    types = [e.type for e in published.events]
+    assert {"tyres_mounted", "tread_measured"} <= set(types) and "tread_low" not in types
+    measured = next(e for e in published.events if e.type == "tread_measured")
+    assert measured.data["min_depth_mm"] == 3.8 and measured.data["tyre_type"] == "winter"
 
 
 def test_latest_measurement_wins(client, vehicle):
@@ -61,7 +63,6 @@ def test_latest_measurement_wins(client, vehicle):
     client.post(m, json={"measured_on": "2026-06-01", "depths_mm": {"front_left": 7.0}})
     tyres = client.get(url(vehicle, "/status")).json()["tyres"]
     assert tyres["depths_mm"]["front_left"] == 7.0
-    assert tyres["state"] == "ok"
 
 
 def test_oil_since_last_change(client, vehicle):
@@ -99,7 +100,6 @@ def test_maintenance_latest_and_costs(client, vehicle):
     assert maint["inspection"]["next_due_on"] == past
     assert maint["service"]["next_due_km"] == 50500
     assert "state" not in maint["inspection"]
-    assert status["alerts"] == []  # overdue date does not produce an alert
 
     costs = status["costs"]
     assert float(costs["total"]) == 800.0

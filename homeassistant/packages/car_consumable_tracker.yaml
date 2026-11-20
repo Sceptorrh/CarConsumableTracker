@@ -22,10 +22,7 @@ rest:
         value_template: "{{ value_json.tyres.min_depth_mm if value_json.tyres else none }}"
         unit_of_measurement: mm
         json_attributes_path: "$.tyres"
-        json_attributes: [name, tyre_type, state, depths_mm, last_measured_on]
-      - name: "Golf tyre state"
-        unique_id: cct_1_tyre_state
-        value_template: "{{ value_json.tyres.state if value_json.tyres else 'unknown' }}"
+        json_attributes: [name, tyre_type, depths_mm, last_measured_on]
       - name: "Golf oil added since change"
         unique_id: cct_1_oil_added
         value_template: "{{ value_json.oil.added_since_change_l }}"
@@ -49,9 +46,18 @@ rest:
         value_template: "{{ value_json.maintenance.service.next_due_km if value_json.maintenance.service is defined else none }}"
         json_attributes: [maintenance]
 
-# "Due" logic lives in Home Assistant, not in CCT. Tune the margins to taste.
+# All judgements (due, too low) live in Home Assistant, not in CCT. Tune thresholds to taste.
 template:
   - binary_sensor:
+      - name: "Golf tyre tread low"
+        unique_id: cct_1_tread_low
+        device_class: problem
+        # 4 mm for winter/all-season tyres, 3 mm for summer tyres (legal minimum is 1.6 mm)
+        state: >-
+          {% set mm = states('sensor.golf_tyre_tread_min') | float(none) %}
+          {% set type = state_attr('sensor.golf_tyre_tread_min', 'tyre_type') %}
+          {% set limit = 3.0 if type == 'summer' else 4.0 %}
+          {{ mm is not none and mm < limit }}
       - name: "Golf inspection due"
         unique_id: cct_1_inspection_due
         device_class: problem
@@ -80,7 +86,7 @@ rest_command:
 automation:
   # Receives events CCT sends when CCT_HA_WEBHOOK_URL points at
   # http://<ha>:8123/api/webhook/car_consumable_tracker
-  - alias: "CCT: notify on low tread"
+  - alias: "CCT: notify on low tread after a measurement"
     triggers:
       - trigger: webhook
         webhook_id: car_consumable_tracker
@@ -88,11 +94,14 @@ automation:
         local_only: true
     conditions:
       - condition: template
-        value_template: "{{ trigger.json.type == 'tread_low' }}"
+        value_template: >-
+          {% set d = trigger.json.data %}
+          {{ trigger.json.type == 'tread_measured' and d.min_depth_mm is not none
+             and d.min_depth_mm < (3.0 if d.tyre_type == 'summer' else 4.0) }}
     actions:
       - action: persistent_notification.create
         data:
-          title: "Tyre tread {{ trigger.json.data.state }}"
+          title: "Tyre tread low"
           message: >-
             Vehicle {{ trigger.json.vehicle_id }}: lowest tread is
             {{ trigger.json.data.min_depth_mm }} mm.

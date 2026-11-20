@@ -1,7 +1,7 @@
 """Derived, automation-friendly status for a vehicle (tyres, oil, maintenance, costs).
 
-The app reports facts only; scheduling decisions such as "maintenance due" are left to
-Home Assistant, which can compare ``next_due_on`` / ``next_due_km`` with today / the odometer."""
+The app reports facts only. Judgements such as "maintenance due" or "tread too low" are left
+to Home Assistant, which compares these values with its own thresholds."""
 
 from datetime import date
 from decimal import Decimal
@@ -16,7 +16,6 @@ from app.models import (
     OilRecord,
     TreadMeasurement,
     TyreSet,
-    TyreType,
     Vehicle,
     WheelPosition,
 )
@@ -28,19 +27,6 @@ ROAD_POSITIONS = {
     WheelPosition.rear_left,
     WheelPosition.rear_right,
 }
-
-
-def tread_state(min_depth: float | None, tyre_type: TyreType, settings: Settings) -> str:
-    if min_depth is None:
-        return "unknown"
-    if min_depth < settings.tread_critical_mm:
-        return "critical"
-    warning = (
-        settings.tread_warning_winter_mm
-        if tyre_type in (TyreType.winter, TyreType.all_season)
-        else settings.tread_warning_mm
-    )
-    return "warning" if min_depth < warning else "ok"
 
 
 def latest_depths(db: Session, tyre_set: TyreSet) -> tuple[dict[WheelPosition, float], date | None]:
@@ -58,7 +44,7 @@ def latest_depths(db: Session, tyre_set: TyreSet) -> tuple[dict[WheelPosition, f
     return depths, last
 
 
-def tyre_status(db: Session, tyre_set: TyreSet, settings: Settings) -> TyreStatus:
+def tyre_status(db: Session, tyre_set: TyreSet) -> TyreStatus:
     depths, last = latest_depths(db, tyre_set)
     road = [d for p, d in depths.items() if p in ROAD_POSITIONS]
     min_depth = min(road) if road else None
@@ -69,7 +55,6 @@ def tyre_status(db: Session, tyre_set: TyreSet, settings: Settings) -> TyreStatu
         last_measured_on=last,
         depths_mm=depths,
         min_depth_mm=min_depth,
-        state=tread_state(min_depth, tyre_set.tyre_type, settings),
     )
 
 
@@ -164,11 +149,7 @@ def vehicle_status(
     mounted = db.scalars(
         select(TyreSet).where(TyreSet.vehicle_id == vehicle.id, TyreSet.is_mounted.is_(True))
     ).first()
-    tyres = tyre_status(db, mounted, settings) if mounted else None
-
-    alerts: list[str] = []
-    if tyres and tyres.state in ("warning", "critical"):
-        alerts.append(f"tread_{tyres.state}")
+    tyres = tyre_status(db, mounted) if mounted else None
 
     return VehicleStatus(
         vehicle_id=vehicle.id,
@@ -179,5 +160,4 @@ def vehicle_status(
         oil=oil_status(db, vehicle),
         maintenance=latest_maintenance(db, vehicle),
         costs=cost_summary(db, vehicle, settings, today),
-        alerts=alerts,
     )

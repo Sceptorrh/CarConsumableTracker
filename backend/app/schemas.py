@@ -205,7 +205,6 @@ class TyreStatus(BaseModel):
     last_measured_on: date | None
     depths_mm: dict[WheelPosition, float]
     min_depth_mm: float | None
-    state: str  # "ok" | "warning" | "critical" | "unknown"
 
 
 class OilStatus(BaseModel):
@@ -244,4 +243,3 @@ class VehicleStatus(BaseModel):
     oil: OilStatus
     maintenance: dict[MaintenanceCategory, MaintenanceLatest]
     costs: CostSummary
-    alerts: list[str]

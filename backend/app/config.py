@@ -15,11 +15,6 @@ class Settings(BaseSettings):
 
     currency: str = "EUR"
 
-    # Tread depth thresholds in mm. Below "warning" -> warning, below "critical" -> critical.
-    tread_warning_mm: float = 3.0
-    tread_warning_winter_mm: float = 4.0
-    tread_critical_mm: float = 1.6
-
     # Outbound events: Home Assistant webhook URL, e.g.
     # http://homeassistant.local:8123/api/webhook/car_consumable_tracker
     ha_webhook_url: str | None = None

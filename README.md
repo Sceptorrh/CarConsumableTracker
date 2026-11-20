@@ -53,7 +53,7 @@ curl $API/vehicles/1/status
 
 * Example package with REST sensors, an odometer `rest_command` and a webhook automation:
   [homeassistant/packages/car_consumable_tracker.yaml](homeassistant/packages/car_consumable_tracker.yaml)
-* Set `CCT_HA_WEBHOOK_URL` to receive events such as `tread_low` and `oil_added` in HA.
+* Set `CCT_HA_WEBHOOK_URL` to receive events such as `tread_measured` and `oil_added` in HA.
 * Set `CCT_API_TOKEN` and send `Authorization: Bearer <token>` from HA.
 
 ## Project layout
@@ -62,7 +62,7 @@ curl $API/vehicles/1/status
 backend/
   app/
     api/          REST routers (vehicles, tyres, oil, maintenance, status)
-    services/     domain logic (status/alerts/costs, odometer)
+    services/     domain logic (status/costs, odometer)
     models.py     SQLAlchemy models      schemas.py  API schemas
     events.py     event bus + publishers (log, HA webhook; MQTT later)
     config.py     settings from CCT_* env vars

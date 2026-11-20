@@ -23,7 +23,7 @@ log = logging.getLogger("cct.events")
 
 @dataclass
 class Event:
-    type: str  # e.g. "vehicle_created", "tread_measured", "tread_low", "oil_added"
+    type: str  # e.g. "vehicle_created", "tread_measured", "oil_added"
     vehicle_id: int | None
     data: dict[str, Any] = field(default_factory=dict)
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))

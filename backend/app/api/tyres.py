@@ -3,7 +3,7 @@ from datetime import date
 from fastapi import APIRouter, BackgroundTasks, status
 from sqlalchemy import select, update
 
-from app.api.deps import DB, Bus, SettingsDep, VehicleDep, get_or_404
+from app.api.deps import DB, Bus, VehicleDep, get_or_404
 from app.events import Event
 from app.models import TreadMeasurement, TyreSet
 from app.schemas import (
@@ -113,7 +113,6 @@ def add_measurements(
     body: TreadMeasurementCreate,
     db: DB,
     bus: Bus,
-    settings: SettingsDep,
     background: BackgroundTasks,
 ):
     """Record tread depth per wheel, e.g. {"depths_mm": {"front_left": 6.1, "front_right": 6.0}}."""
@@ -133,9 +132,12 @@ def add_measurements(
     record_odometer(db, vehicle, body.odometer_km, measured_on)
     db.commit()
 
-    st = tyre_status(db, tyre_set, settings)
-    payload = {"tyre_set_id": tyre_set.id, "depths_mm": st.depths_mm, "min_depth_mm": st.min_depth_mm, "state": st.state}
+    st = tyre_status(db, tyre_set)
+    payload = {
+        "tyre_set_id": tyre_set.id,
+        "tyre_type": tyre_set.tyre_type,
+        "depths_mm": st.depths_mm,
+        "min_depth_mm": st.min_depth_mm,
+    }
     bus.publish(background, Event("tread_measured", vehicle.id, payload))
-    if st.state in ("warning", "critical"):
-        bus.publish(background, Event("tread_low", vehicle.id, payload))
     return rows

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% from "macros.html" import field, number, select, textarea %}
+{% block title %}{{ "Edit maintenance" if record else "Add maintenance" }}{% endblock %}
+{% block content %}
+<a href="/vehicles/{{ vehicle.id }}/maintenance" class="back">&larr; {{ vehicle.name }} · Maintenance</a>
+<h1>{{ "Edit maintenance" if record else "Add maintenance" }}</h1>
+<form method="post" class="form card">
+  <div class="grid-2">
+    {{ select("category", "Category", values, errors, MaintenanceCategory, required=true, blank="Choose…") }}
+    {{ field("title", "Title", values, errors, required=true, attrs='maxlength="200" placeholder="e.g. Yearly service"') }}
+    {{ field("performed_on", "Date", values if values.get("performed_on") else dict(values, performed_on=today), errors, type="date", required=true) }}
+    {{ number("odometer_km", "Odometer", values, errors, suffix="km", placeholder=vehicle.odometer_km or "") }}
+    {{ number("cost", "Cost", values, errors, step="0.01", suffix=settings.currency) }}
+    {{ field("provider", "Garage / provider", values, errors, attrs='placeholder="e.g. DIY"') }}
+  </div>
+  {{ textarea("description", "What was done", values, errors) }}
+  <fieldset>
+    <legend>Next time <span class="muted small">(optional — Home Assistant uses these for reminders)</span></legend>
+    <div class="grid-2">
+      {{ field("next_due_on", "Next date", values, errors, type="date") }}
+      {{ number("next_due_km", "Next at odometer", values, errors, suffix="km") }}
+    </div>
+  </fieldset>
+  {{ textarea("notes", "Notes", values, errors, rows=2) }}
+  <div class="actions"><button type="submit" class="btn primary">{{ "Save" if record else "Add record" }}</button></div>
+</form>
+{% endblock %}

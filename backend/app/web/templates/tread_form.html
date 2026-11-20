@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% from "macros.html" import field, number, type_badge %}
+{% block title %}Measure tread · {{ tyre_set.name }}{% endblock %}
+{% block content %}
+<a href="/vehicles/{{ vehicle.id }}/tyres" class="back">&larr; {{ vehicle.name }} · Tyres</a>
+<h1>Measure tread</h1>
+<p class="muted">{{ tyre_set.name }} {{ type_badge(tyre_set.tyre_type) }}</p>
+
+<form method="post" class="form card">
+  <div class="grid-2">
+    {{ field("measured_on", "Date", values if values.get("measured_on") else dict(values, measured_on=today), errors, type="date") }}
+    {{ number("odometer_km", "Odometer", values, errors, suffix="km", placeholder=vehicle.odometer_km or "") }}
+  </div>
+
+  <fieldset class="tread-input{% if errors.get('depths_mm') %} has-error{% endif %}">
+    <legend>Tread depth (mm)</legend>
+    <div class="wheels editable">
+      {% for pos in ROAD_WHEELS %}
+      <label class="wheel {{ pos.value }}">
+        <span class="wheel-pos">{{ pos | label }}</span>
+        <input type="number" name="depth_{{ pos.value }}" value="{{ values.get('depth_' ~ pos.value) or '' }}"
+               min="0" max="30" step="0.1" inputmode="decimal" {% if loop.first %}autofocus{% endif %}>
+      </label>
+      {% endfor %}
+      <div class="car-body" aria-hidden="true"><span>FRONT</span></div>
+    </div>
+    <label class="field spare-field">
+      <span class="field-label">Spare (optional)</span>
+      <input type="number" name="depth_spare" value="{{ values.get('depth_spare') or '' }}" min="0" max="30" step="0.1" inputmode="decimal">
+    </label>
+    {% if errors.get('depths_mm') %}<small class="error">{{ errors['depths_mm'] }}</small>{% endif %}
+  </fieldset>
+  <div class="actions"><button type="submit" class="btn primary">Save measurement</button></div>
+</form>
+{% endblock %}

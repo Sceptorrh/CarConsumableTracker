@@ -1,0 +1,86 @@
+{% macro _val(values, name) -%}
+  {%- set v = values.get(name) -%}{{ '' if v is none else v }}
+{%- endmacro %}
+
+{% macro error(errors, name) -%}
+  {% if errors.get(name) %}<small class="error">{{ errors[name] }}</small>{% endif %}
+{%- endmacro %}
+
+{% macro field(name, text, values, errors, type="text", required=false, attrs="", hint="", suffix="") %}
+<label class="field{% if errors.get(name) %} has-error{% endif %}">
+  <span class="field-label">{{ text }}{% if required %} <em aria-hidden="true">*</em>{% endif %}</span>
+  <span class="input-wrap{% if suffix %} has-suffix{% endif %}">
+    <input type="{{ type }}" name="{{ name }}" value="{{ _val(values, name) }}"{% if required %} required{% endif %} {{ attrs|safe }}>
+    {% if suffix %}<span class="suffix">{{ suffix }}</span>{% endif %}
+  </span>
+  {% if hint %}<small class="hint">{{ hint }}</small>{% endif %}
+  {{ error(errors, name) }}
+</label>
+{% endmacro %}
+
+{% macro number(name, text, values, errors, step="1", suffix="", required=false, hint="", min="0", placeholder="") %}
+{{ field(name, text, values, errors, type="number", required=required, suffix=suffix, hint=hint,
+         attrs='step="%s" min="%s" inputmode="%s"%s' % (step, min, "numeric" if step == "1" else "decimal",
+               (' placeholder="%s"' % placeholder) if placeholder else "")) }}
+{% endmacro %}
+
+{% macro select(name, text, values, errors, enum, required=false, blank="") %}
+{% set current = values.get(name) %}
+<label class="field{% if errors.get(name) %} has-error{% endif %}">
+  <span class="field-label">{{ text }}{% if required %} <em aria-hidden="true">*</em>{% endif %}</span>
+  <select name="{{ name }}"{% if required %} required{% endif %}>
+    {% if not required or blank %}<option value="">{{ blank or "—" }}</option>{% endif %}
+    {% for m in enum %}
+      <option value="{{ m.value }}"{% if current == m.value %} selected{% endif %}>{{ m | label }}</option>
+    {% endfor %}
+  </select>
+  {{ error(errors, name) }}
+</label>
+{% endmacro %}
+
+{% macro textarea(name, text, values, errors, rows=3) %}
+<label class="field">
+  <span class="field-label">{{ text }}</span>
+  <textarea name="{{ name }}" rows="{{ rows }}">{{ _val(values, name) }}</textarea>
+  {{ error(errors, name) }}
+</label>
+{% endmacro %}
+
+{% macro checkbox(name, text, values, hint="") %}
+{% set v = values.get(name) %}
+<label class="check">
+  <input type="checkbox" name="{{ name }}"{% if v and v not in ("false", "0") %} checked{% endif %}>
+  <span>{{ text }}{% if hint %}<small class="hint">{{ hint }}</small>{% endif %}</span>
+</label>
+{% endmacro %}
+
+{% macro delete_button(action, what) %}
+<form method="post" action="{{ action }}" class="inline" onsubmit="return confirm('Delete {{ what }}? This cannot be undone.')">
+  <button type="submit" class="btn-icon danger" title="Delete {{ what }}" aria-label="Delete {{ what }}">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>
+  </button>
+</form>
+{% endmacro %}
+
+{% macro type_badge(tyre_type) -%}
+<span class="badge tyre-{{ tyre_type.value }}">{{ tyre_type | label }}</span>
+{%- endmacro %}
+
+{% macro plate(text) -%}
+{% if text %}<span class="plate">{{ text }}</span>{% endif %}
+{%- endmacro %}
+
+{% macro wheels(depths, ROAD_WHEELS, show_spare=true) %}
+<div class="wheels" role="img" aria-label="Tread depth per wheel">
+  {% for pos in ROAD_WHEELS %}
+    <div class="wheel {{ pos.value }}">
+      <span class="wheel-pos">{{ pos | label }}</span>
+      <span class="wheel-mm">{% if pos in depths %}{{ depths[pos] | num }}<small>mm</small>{% else %}–{% endif %}</span>
+    </div>
+  {% endfor %}
+  <div class="car-body" aria-hidden="true"><span>FRONT</span></div>
+</div>
+{% if show_spare and WheelPosition.spare in depths %}
+  <p class="muted small">Spare: {{ depths[WheelPosition.spare] | num }} mm</p>
+{% endif %}
+{% endmacro %}

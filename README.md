@@ -2,19 +2,24 @@
 
 Self-hosted tracker for the consumables of your cars: **tyres** (summer/winter/all-season sets,
 tread depth per wheel), **engine oil** top-ups, **maintenance** and their **costs** – with a
-REST API designed to integrate with **Home Assistant**.
+mobile-friendly web UI and a REST API designed to integrate with **Home Assistant**.
 
-See [docs/PLAN.md](docs/PLAN.md) for MVP scope, architecture and roadmap.
+The app records facts; Home Assistant decides what is "due" or "too low".
+
+- [docs/PLAN.md](docs/PLAN.md) – MVP scope, architecture and roadmap
+- [docs/DEPLOY-UNRAID.md](docs/DEPLOY-UNRAID.md) – install on unRAID with automatic updates
 
 ## Run with Docker
 
+[`docker-compose.yml`](docker-compose.yml) runs the published image plus a scoped auto-updater.
+Copy [`.env.example`](.env.example) to `.env`, fill it in, then:
+
 ```bash
-docker compose up -d --build
-# API docs: http://localhost:8000/docs
+docker compose up -d
+# Web UI: http://localhost:8000   API docs: http://localhost:8000/docs
 ```
 
-Data is stored in `./data/cct.db`. Configuration is via `CCT_*` environment variables
-(see [.env.example](.env.example)).
+Build the image yourself: `docker build -t cct backend`.
 
 ## Run locally
 
@@ -23,9 +28,12 @@ cd backend
 python -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"
 alembic upgrade head
-uvicorn app.main:app --reload
+CCT_DATABASE_URL=sqlite:///./data/cct.db uvicorn app.main:app --reload
 pytest
 ```
+
+CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs the tests on every push and
+publishes `ghcr.io/sceptorrh/carconsumabletracker:latest` from `main` (and `X.Y.Z` from `vX.Y.Z` tags).
 
 ## Quick tour of the API
 
@@ -62,12 +70,15 @@ curl $API/vehicles/1/status
 backend/
   app/
     api/          REST routers (vehicles, tyres, oil, maintenance, status)
-    services/     domain logic (status/costs, odometer)
+    web/          web UI: routes, Jinja templates, CSS
+    services/     domain logic shared by API and UI (records, status/costs, odometer)
     models.py     SQLAlchemy models      schemas.py  API schemas
     events.py     event bus + publishers (log, HA webhook; MQTT later)
     config.py     settings from CCT_* env vars
   alembic/        database migrations
   tests/
+deploy/unraid/    unRAID Docker template (alternative to compose)
 homeassistant/    example HA configuration
-docs/PLAN.md      MVP plan & roadmap
+docs/             plan, unRAID deployment guide
+docker-compose.yml production stack (app + scoped Watchtower)
 ```

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% from "macros.html" import field, number, select, textarea, checkbox %}
+{% block title %}{{ "Edit tyre set" if tyre_set else "Add tyre set" }}{% endblock %}
+{% block content %}
+<a href="/vehicles/{{ vehicle.id }}/tyres" class="back">&larr; {{ vehicle.name }} · Tyres</a>
+<h1>{{ "Edit tyre set" if tyre_set else "Add tyre set" }}</h1>
+<form method="post" class="form card">
+  <div class="grid-2">
+    {{ field("name", "Name", values, errors, required=true, attrs='maxlength="100" placeholder="e.g. Winter 2025" autofocus') }}
+    {{ select("tyre_type", "Type", values, errors, TyreType, required=true, blank="Choose…") }}
+    {{ field("brand", "Brand", values, errors) }}
+    {{ field("model", "Model", values, errors) }}
+    {{ field("size", "Size", values, errors, attrs='placeholder="e.g. 205/55 R16 91V"') }}
+    {{ field("dot_code", "DOT code", values, errors, attrs='placeholder="e.g. 2324" maxlength="20"', hint="Week + year of production.") }}
+    {{ field("purchased_on", "Purchased on", values, errors, type="date") }}
+    {{ number("purchase_cost", "Purchase cost", values, errors, step="0.01", suffix=settings.currency) }}
+  </div>
+  {{ textarea("notes", "Notes", values, errors) }}
+  {% if tyre_set %}
+    {{ checkbox("retired", "Retired", values, hint="Worn out or sold. Hidden by default, history kept.") }}
+  {% else %}
+    {{ checkbox("is_mounted", "Currently on the car", values) }}
+  {% endif %}
+  <div class="actions"><button type="submit" class="btn primary">{{ "Save" if tyre_set else "Add tyre set" }}</button></div>
+</form>
+{% endblock %}

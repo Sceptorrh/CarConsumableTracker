@@ -2,10 +2,9 @@ from fastapi import APIRouter, BackgroundTasks, status
 from sqlalchemy import select
 
 from app.api.deps import DB, Bus, VehicleDep, get_or_404
-from app.events import Event
 from app.models import MaintenanceCategory, MaintenanceRecord
 from app.schemas import MaintenanceCreate, MaintenanceRead, MaintenanceUpdate
-from app.services.odometer import record_odometer
+from app.services import records
 
 router = APIRouter(prefix="/vehicles/{vehicle_id}/maintenance", tags=["maintenance"])
 
@@ -22,15 +21,7 @@ def list_maintenance(vehicle: VehicleDep, db: DB, category: MaintenanceCategory 
 def add_maintenance(
     vehicle: VehicleDep, body: MaintenanceCreate, db: DB, bus: Bus, background: BackgroundTasks
 ):
-    record = MaintenanceRecord(vehicle_id=vehicle.id, **body.model_dump())
-    db.add(record)
-    record_odometer(db, vehicle, body.odometer_km, body.performed_on)
-    db.commit()
-    bus.publish(
-        background,
-        Event("maintenance_added", vehicle.id, {"record_id": record.id, "category": record.category, "title": record.title, "cost": record.cost}),
-    )
-    return record
+    return records.add_maintenance(db, bus, background, vehicle, body)
 
 
 @router.get("/{record_id}", response_model=MaintenanceRead)
@@ -40,14 +31,9 @@ def get_maintenance(vehicle: VehicleDep, record_id: int, db: DB):
 
 @router.patch("/{record_id}", response_model=MaintenanceRead)
 def update_maintenance(vehicle: VehicleDep, record_id: int, body: MaintenanceUpdate, db: DB):
-    record = get_or_404(db, MaintenanceRecord, record_id, vehicle.id)
-    for key, value in body.model_dump(exclude_unset=True).items():
-        setattr(record, key, value)
-    db.commit()
-    return record
+    return records.apply_update(db, get_or_404(db, MaintenanceRecord, record_id, vehicle.id), body)
 
 
 @router.delete("/{record_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_maintenance(vehicle: VehicleDep, record_id: int, db: DB):
-    db.delete(get_or_404(db, MaintenanceRecord, record_id, vehicle.id))
-    db.commit()
+    records.delete(db, get_or_404(db, MaintenanceRecord, record_id, vehicle.id))

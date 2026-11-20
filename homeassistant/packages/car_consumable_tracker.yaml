@@ -3,10 +3,10 @@
 #   homeassistant:
 #     packages: !include_dir_named packages
 # In secrets.yaml add:  cct_auth: "Bearer <your CCT_API_TOKEN>"
-# Replace cct.local:8000 and vehicle id 1 / "golf" with your own values.
+# Replace UNRAID-IP:8000 and vehicle id 1 / "golf" with your own values.
 
 rest:
-  - resource: http://cct.local:8000/api/v1/vehicles/1/status
+  - resource: http://UNRAID-IP:8000/api/v1/vehicles/1/status
     headers:
       Authorization: !secret cct_auth
     scan_interval: 900
@@ -76,7 +76,7 @@ template:
 # Push mileage from a car integration (or a manual input_number) into CCT.
 rest_command:
   cct_update_odometer:
-    url: "http://cct.local:8000/api/v1/vehicles/{{ vehicle_id }}/odometer"
+    url: "http://UNRAID-IP:8000/api/v1/vehicles/{{ vehicle_id }}/odometer"
     method: POST
     headers:
       Authorization: !secret cct_auth

@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<!-- Alternative to docker-compose.yml: a plain unRAID Docker template (no Watchtower).
+     Copy to /boot/config/plugins/dockerMan/templates-user/my-car-consumable-tracker.xml,
+     then Docker tab -> Add Container -> Template: car-consumable-tracker. -->
+<Container version="2">
+  <Name>car-consumable-tracker</Name>
+  <Repository>ghcr.io/sceptorrh/carconsumabletracker:latest</Repository>
+  <Registry>https://github.com/Sceptorrh/CarConsumableTracker/pkgs/container/carconsumabletracker</Registry>
+  <Network>bridge</Network>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Project>https://github.com/Sceptorrh/CarConsumableTracker</Project>
+  <Overview>Track tyres (tread per wheel, summer/winter/all-season), engine oil, maintenance and costs of your cars. REST API for Home Assistant.</Overview>
+  <Category>Tools: HomeAutomation:</Category>
+  <WebUI>http://[IP]:[PORT:8000]/</WebUI>
+  <Config Name="Web UI / API port" Target="8000" Default="8000" Mode="tcp" Description="Port for the web UI and REST API." Type="Port" Display="always" Required="true" Mask="false">8000</Config>
+  <Config Name="Data" Target="/data" Default="/mnt/user/appdata/car-consumable-tracker" Mode="rw" Description="SQLite database." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/car-consumable-tracker</Config>
+  <Config Name="Timezone" Target="TZ" Default="Europe/Amsterdam" Mode="" Description="Your timezone." Type="Variable" Display="always" Required="false" Mask="false">Europe/Amsterdam</Config>
+  <Config Name="Currency" Target="CCT_CURRENCY" Default="EUR" Mode="" Description="Currency code for costs." Type="Variable" Display="always" Required="false" Mask="false">EUR</Config>
+  <Config Name="API token" Target="CCT_API_TOKEN" Default="" Mode="" Description="Bearer token required for /api (Home Assistant). Empty = no token." Type="Variable" Display="always" Required="false" Mask="true"></Config>
+  <Config Name="Home Assistant webhook URL" Target="CCT_HA_WEBHOOK_URL" Default="" Mode="" Description="e.g. http://HA-IP:8123/api/webhook/car_consumable_tracker. Empty = off." Type="Variable" Display="always" Required="false" Mask="false"></Config>
+</Container>

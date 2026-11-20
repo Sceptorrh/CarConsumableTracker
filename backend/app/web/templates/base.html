@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>{% block title %}Car Consumables{% endblock %} · Car Consumables</title>
+  <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/style.css?v={{ settings.version }}">
+</head>
+<body>
+  <header class="topbar">
+    <a href="/" class="brand">
+      <img src="/static/icon.svg" alt="" width="28" height="28">
+      <span>Car Consumables</span>
+    </a>
+  </header>
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="footer">
+    <span>{{ "Development build" if settings.version == "dev" else "Version " ~ settings.version }}</span>
+    <a href="/docs">API docs</a>
+  </footer>
+</body>
+</html>

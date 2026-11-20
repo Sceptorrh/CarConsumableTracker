@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% from "macros.html" import delete_button %}
+{% block title %}Maintenance · {{ vehicle.name }}{% endblock %}
+{% block content %}
+{% include "_vehicle_header.html" %}
+
+<div class="page-head">
+  <h2>Maintenance</h2>
+  <a class="btn primary" href="/vehicles/{{ vehicle.id }}/maintenance/new">+ Add record</a>
+</div>
+
+<form method="get" class="filter">
+  <label class="field inline-field">
+    <span class="field-label">Category</span>
+    <select name="category" onchange="this.form.submit()">
+      <option value="">All</option>
+      {% for c in MaintenanceCategory %}<option value="{{ c.value }}"{% if category == c.value %} selected{% endif %}>{{ c | label }}</option>{% endfor %}
+    </select>
+  </label>
+  <noscript><button class="btn small">Filter</button></noscript>
+  <span class="muted small">All costs for this car: {{ money(costs.total) }} · this year {{ money(costs.this_year) }}</span>
+</form>
+
+{% if entries %}
+<div class="record-list">
+  {% for r in entries %}
+  <article class="card record">
+    <div class="record-main">
+      <div>
+        <span class="badge cat">{{ r.category | label }}</span>
+        <h3>{{ r.title }}</h3>
+        <p class="muted small">
+          {{ r.performed_on | date }}{% if r.odometer_km is not none %} · {{ r.odometer_km | km }}{% endif %}{% if r.provider %} · {{ r.provider }}{% endif %}
+        </p>
+        {% if r.description %}<p class="small">{{ r.description }}</p>{% endif %}
+        {% if r.next_due_on or r.next_due_km is not none %}
+          <p class="small next">Next: {% if r.next_due_on %}{{ r.next_due_on | date }}{% endif %}{% if r.next_due_on and r.next_due_km is not none %} or {% endif %}{% if r.next_due_km is not none %}{{ r.next_due_km | km }}{% endif %}</p>
+        {% endif %}
+      </div>
+      <div class="record-side">
+        <strong>{{ money(r.cost) }}</strong>
+        <div class="row-actions">
+          <a class="btn small" href="/vehicles/{{ vehicle.id }}/maintenance/{{ r.id }}/edit">Edit</a>
+          {{ delete_button("/vehicles/%d/maintenance/%d/delete" % (vehicle.id, r.id), "this record") }}
+        </div>
+      </div>
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+  <div class="empty"><p class="muted">No maintenance records{% if category %} in this category{% endif %}.</p></div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,19 @@
+{% from "macros.html" import plate %}
+<div class="vehicle-head">
+  <a href="/" class="back" aria-label="All vehicles">&larr; Vehicles</a>
+  <div class="vehicle-title">
+    <h1>{{ vehicle.name }}</h1>
+    {{ plate(vehicle.license_plate) }}
+    {% if vehicle.archived %}<span class="badge muted-badge">Archived</span>{% endif %}
+  </div>
+  <p class="muted">
+    {{ [vehicle.make, vehicle.model, vehicle.year] | select | join(" · ") }}
+    {% if vehicle.odometer_km is not none %}<span class="dot-sep">{{ vehicle.odometer_km | km }}</span>{% endif %}
+  </p>
+</div>
+<nav class="tabs" aria-label="Vehicle sections">
+  <a href="/vehicles/{{ vehicle.id }}" {% if tab == "overview" %}aria-current="page"{% endif %}>Overview</a>
+  <a href="/vehicles/{{ vehicle.id }}/tyres" {% if tab == "tyres" %}aria-current="page"{% endif %}>Tyres</a>
+  <a href="/vehicles/{{ vehicle.id }}/oil" {% if tab == "oil" %}aria-current="page"{% endif %}>Oil</a>
+  <a href="/vehicles/{{ vehicle.id }}/maintenance" {% if tab == "maintenance" %}aria-current="page"{% endif %}>Maintenance</a>
+</nav>

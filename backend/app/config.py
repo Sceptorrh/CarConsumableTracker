@@ -8,6 +8,9 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="CCT_", env_file=".env", extra="ignore")
 
+    # Set at image build time (git tag or commit); shown in the UI footer.
+    version: str = "dev"
+
     database_url: str = "sqlite:///./data/cct.db"
 
     # When set, every /api request must send "Authorization: Bearer <token>".

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% from "macros.html" import field, number, select, textarea, checkbox %}
+{% block title %}{{ "Edit " ~ vehicle.name if vehicle else "Add vehicle" }}{% endblock %}
+{% block content %}
+<a href="{{ '/vehicles/%d' % vehicle.id if vehicle else '/' }}" class="back">&larr; Back</a>
+<h1>{{ "Edit vehicle" if vehicle else "Add vehicle" }}</h1>
+<form method="post" class="form card">
+  <div class="grid-2">
+    {{ field("name", "Name", values, errors, required=true, attrs='maxlength="100" placeholder="e.g. Family car" autofocus') }}
+    {{ field("license_plate", "License plate", values, errors, attrs='maxlength="20"') }}
+    {{ field("make", "Make", values, errors, attrs='placeholder="e.g. Volkswagen"') }}
+    {{ field("model", "Model", values, errors, attrs='placeholder="e.g. Golf"') }}
+    {{ number("year", "Year", values, errors, min="1886") }}
+    {{ select("fuel_type", "Fuel", values, errors, FuelType) }}
+    {% if not vehicle %}{{ number("odometer_km", "Current odometer", values, errors, suffix="km") }}{% endif %}
+    {{ field("oil_spec", "Engine oil spec", values, errors, attrs='placeholder="e.g. 5W-30 VW 504.00"', hint="Used as default when you log oil.") }}
+    {{ field("vin", "VIN", values, errors, attrs='maxlength="32"') }}
+  </div>
+  {{ textarea("notes", "Notes", values, errors) }}
+  {% if vehicle %}{{ checkbox("archived", "Archived", values, hint="Hidden from the dashboard and Home Assistant status, history kept.") }}{% endif %}
+  <div class="actions">
+    <button type="submit" class="btn primary">{{ "Save" if vehicle else "Add vehicle" }}</button>
+  </div>
+</form>
+
+{% if vehicle %}
+<form method="post" action="/vehicles/{{ vehicle.id }}/delete" class="danger-zone"
+      onsubmit="return confirm('Delete {{ vehicle.name }} and ALL its records? This cannot be undone. Tip: archive it instead.')">
+  <div>
+    <strong>Delete vehicle</strong>
+    <p class="muted small">Removes the vehicle and all its tyre, oil and maintenance records.</p>
+  </div>
+  <button type="submit" class="btn danger">Delete</button>
+</form>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% from "macros.html" import type_badge, wheels, delete_button %}
+{% block title %}Tyres · {{ vehicle.name }}{% endblock %}
+{% block content %}
+{% include "_vehicle_header.html" %}
+
+<div class="page-head">
+  <h2>Tyre sets</h2>
+  <a class="btn primary" href="/vehicles/{{ vehicle.id }}/tyres/new">+ Add tyre set</a>
+</div>
+
+{% if not items %}
+  <div class="empty">
+    <p><strong>No tyre sets yet.</strong></p>
+    <p class="muted">Add e.g. your summer and winter set, then log tread depth per wheel.</p>
+  </div>
+{% endif %}
+
+{% for ts, st, history in items %}
+<section class="card tyre-set{% if ts.is_mounted %} mounted{% endif %}">
+  <div class="card-head">
+    <div>
+      <h3>{{ ts.name }} {{ type_badge(ts.tyre_type) }}
+        {% if ts.is_mounted %}<span class="badge mounted-badge">Mounted</span>{% endif %}
+        {% if ts.retired %}<span class="badge muted-badge">Retired</span>{% endif %}
+      </h3>
+      <p class="muted small">
+        {{ [ts.brand, ts.model, ts.size] | select | join(" · ") }}
+        {% if ts.dot_code %}· DOT {{ ts.dot_code }}{% endif %}
+        {% if ts.purchased_on %}· bought {{ ts.purchased_on | date }}{% endif %}
+        {% if ts.purchase_cost is not none %}· {{ money(ts.purchase_cost) }}{% endif %}
+      </p>
+    </div>
+    <div class="row-actions">
+      <a class="btn small" href="/vehicles/{{ vehicle.id }}/tyres/{{ ts.id }}/edit">Edit</a>
+      {{ delete_button("/vehicles/%d/tyres/%d/delete" % (vehicle.id, ts.id), "this tyre set") }}
+    </div>
+  </div>
+
+  <div class="tyre-body">
+    <div>
+      {{ wheels(st.depths_mm, ROAD_WHEELS) }}
+      {% if st.last_measured_on %}<p class="muted small center">Last measured {{ st.last_measured_on | date }}</p>{% endif %}
+    </div>
+    <div class="tyre-actions">
+      <a class="btn primary" href="/vehicles/{{ vehicle.id }}/tyres/{{ ts.id }}/measure">Measure tread</a>
+      {% if not ts.is_mounted %}
+      <details class="mount">
+        <summary class="btn">Mount this set</summary>
+        <form method="post" action="/vehicles/{{ vehicle.id }}/tyres/{{ ts.id }}/mount" class="stack">
+          <label class="field"><span class="field-label">Date</span><input type="date" name="mounted_on" value="{{ today }}"></label>
+          <label class="field"><span class="field-label">Odometer (km)</span>
+            <input type="number" name="odometer_km" min="0" step="1" inputmode="numeric" placeholder="{{ vehicle.odometer_km or '' }}"></label>
+          <button class="btn primary" type="submit">Mount</button>
+          <p class="muted small">Other sets on this car will be unmounted. Log the swap cost as maintenance (Tyre change).</p>
+        </form>
+      </details>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if history %}
+  <details class="history">
+    <summary>Measurement history ({{ history | length }})</summary>
+    <div class="table-wrap">
+      <table class="num-table">
+        <thead><tr><th>Date</th><th>Odometer</th><th>FL</th><th>FR</th><th>RL</th><th>RR</th><th>Spare</th><th></th></tr></thead>
+        <tbody>
+        {% for h in history %}
+          <tr>
+            <td>{{ h.measured_on | date }}</td>
+            <td>{{ h.odometer_km | km }}</td>
+            {% for pos in WheelPosition %}<td>{{ h.depths[pos] | num if pos in h.depths else "–" }}</td>{% endfor %}
+            <td>
+              <form method="post" action="/vehicles/{{ vehicle.id }}/tyres/{{ ts.id }}/measurements/delete" class="inline"
+                    onsubmit="return confirm('Delete this measurement?')">
+                {% for id in h.ids %}<input type="hidden" name="ids" value="{{ id }}">{% endfor %}
+                <button type="submit" class="btn-icon danger" aria-label="Delete measurement">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>
+                </button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </details>
+  {% endif %}
+</section>
+{% endfor %}
+
+<p class="center small">
+  {% if show_retired %}<a href="/vehicles/{{ vehicle.id }}/tyres">Hide retired sets</a>
+  {% else %}<a href="/vehicles/{{ vehicle.id }}/tyres?retired=true">Show retired sets</a>{% endif %}
+</p>
+{% endblock %}

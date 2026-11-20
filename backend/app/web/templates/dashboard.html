@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% from "macros.html" import plate, type_badge %}
+{% block title %}{{ "Archived vehicles" if archived else "Vehicles" }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ "Archived vehicles" if archived else "Vehicles" }}</h1>
+  {% if not archived %}<a class="btn primary" href="/vehicles/new">+ Add vehicle</a>{% endif %}
+</div>
+
+{% if not cards %}
+  <div class="empty">
+    {% if archived %}
+      <p>No archived vehicles.</p>
+    {% else %}
+      <p><strong>No vehicles yet.</strong></p>
+      <p class="muted">Add your first car to start tracking tyres, oil and maintenance.</p>
+      <a class="btn primary" href="/vehicles/new">+ Add vehicle</a>
+    {% endif %}
+  </div>
+{% endif %}
+
+<div class="card-grid">
+  {% for v, st in cards %}
+  <a class="card vehicle-card" href="/vehicles/{{ v.id }}">
+    <div class="vehicle-card-head">
+      <h2>{{ v.name }}</h2>
+      {{ plate(v.license_plate) }}
+    </div>
+    <p class="muted small">{{ [v.make, v.model, v.year] | select | join(" · ") or "&nbsp;" | safe }}</p>
+    <dl class="stats">
+      <div><dt>Odometer</dt><dd>{{ st.odometer_km | km }}</dd></div>
+      <div><dt>Tyres</dt><dd>
+        {% if st.tyres %}{{ type_badge(st.tyres.tyre_type) }}
+          {% if st.tyres.min_depth_mm is not none %}<span class="nowrap">min {{ st.tyres.min_depth_mm | num }} mm</span>{% endif %}
+        {% else %}<span class="muted">none mounted</span>{% endif %}
+      </dd></div>
+      <div><dt>Oil since change</dt><dd>{{ st.oil.added_since_change_l | num(2) }} L</dd></div>
+      <div><dt>Costs this year</dt><dd>{{ money(st.costs.this_year) }}</dd></div>
+    </dl>
+  </a>
+  {% endfor %}
+</div>
+
+<p class="center small">
+  {% if archived %}<a href="/">&larr; Active vehicles</a>
+  {% elif archived_count %}<a href="/?archived=true">Archived vehicles ({{ archived_count }})</a>{% endif %}
+</p>
+{% endblock %}

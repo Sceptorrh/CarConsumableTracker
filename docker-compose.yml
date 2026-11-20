@@ -1,15 +1,49 @@
+# Car Consumable Tracker – production stack for unRAID (Docker Compose Manager plugin)
+# or any Docker host. Values come from the .env file next to this file; see .env.example.
+#
+# Two containers:
+#   cct          the app (web UI + REST API) on port ${CCT_PORT:-8000}
+#   cct-updater  Watchtower, scoped so it can ONLY update the cct container
+name: car-consumable-tracker
+
 services:
   cct:
-    build: ./backend
+    image: ghcr.io/sceptorrh/carconsumabletracker:${CCT_TAG:-latest}
     container_name: car-consumable-tracker
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "${CCT_PORT:-8000}:8000"
     volumes:
-      - ./data:/data
+      # SQLite database lives here – include it in your appdata backup.
+      - ${CCT_DATA_DIR:-/mnt/user/appdata/car-consumable-tracker}:/data
     environment:
-      # Strongly recommended once Home Assistant talks to it:
-      # CCT_API_TOKEN: change-me
-      # Push events (tread_low, oil_added, ...) to a Home Assistant webhook automation:
-      # CCT_HA_WEBHOOK_URL: http://homeassistant.local:8123/api/webhook/car_consumable_tracker
-      CCT_CURRENCY: EUR
+      TZ: ${TZ:-Europe/Amsterdam}
+      CCT_CURRENCY: ${CCT_CURRENCY:-EUR}
+      # Required "Authorization: Bearer <token>" for /api/* (Home Assistant). Empty = no token.
+      CCT_API_TOKEN: ${CCT_API_TOKEN:-}
+      # Home Assistant webhook that receives events (tread_measured, oil_added, ...). Empty = off.
+      CCT_HA_WEBHOOK_URL: ${CCT_HA_WEBHOOK_URL:-}
+    labels:
+      com.centurylinklabs.watchtower.enable: "true"
+      com.centurylinklabs.watchtower.scope: car-consumable-tracker
+
+  cct-updater:
+    # Maintained fork of Watchtower (the original containrrr/watchtower was archived in 2025).
+    image: nickfedor/watchtower:latest
+    container_name: car-consumable-tracker-updater
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      TZ: ${TZ:-Europe/Amsterdam}
+      # Only touch containers that carry BOTH the enable label and this scope (= the cct container).
+      WATCHTOWER_LABEL_ENABLE: "true"
+      WATCHTOWER_SCOPE: car-consumable-tracker
+      WATCHTOWER_POLL_INTERVAL: ${CCT_UPDATE_INTERVAL:-3600}
+      WATCHTOWER_CLEANUP: "true"          # remove the old image after updating
+      WATCHTOWER_INCLUDE_RESTARTING: "true"
+      # Credentials for the private image on ghcr.io (leave empty if you made the package public).
+      REPO_USER: ${GHCR_USER:-}
+      REPO_PASS: ${GHCR_TOKEN:-}
+    labels:
+      com.centurylinklabs.watchtower.scope: car-consumable-tracker

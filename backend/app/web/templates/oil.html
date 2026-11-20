@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% from "macros.html" import field, number, textarea, delete_button %}
+{% block title %}Oil · {{ vehicle.name }}{% endblock %}
+{% block content %}
+{% include "_vehicle_header.html" %}
+
+<div class="card-grid">
+  <section class="card">
+    <h2>Log oil top-up</h2>
+    <form method="post" class="form">
+      <div class="grid-2">
+        {{ field("added_on", "Date", values if values.get("added_on") else dict(values, added_on=today), errors, type="date", required=true) }}
+        {{ number("amount_l", "Amount", values, errors, step="0.05", suffix="L", required=true) }}
+        {{ number("odometer_km", "Odometer", values, errors, suffix="km", placeholder=vehicle.odometer_km or "") }}
+        {{ number("cost", "Cost", values, errors, step="0.01", suffix=settings.currency) }}
+      </div>
+      {{ field("oil_spec", "Oil", values, errors, attrs='placeholder="%s"' % (vehicle.oil_spec or "e.g. 5W-30"), hint="Leave empty to use the vehicle's oil spec." if vehicle.oil_spec else "") }}
+      {{ field("notes", "Notes", values, errors) }}
+      <div class="actions"><button type="submit" class="btn primary">Add</button></div>
+    </form>
+    <p class="muted small">A full oil change is logged under <a href="/vehicles/{{ vehicle.id }}/maintenance/new?category=oil_change">Maintenance → Oil change</a>.</p>
+  </section>
+
+  <section class="card">
+    <h2>Since last oil change</h2>
+    <dl class="stats">
+      <div><dt>Added</dt><dd>{{ oil.added_since_change_l | num(2) }} L</dd></div>
+      <div><dt>Last change</dt><dd>{{ oil.last_change_on | date }}</dd></div>
+      <div><dt>Km since change</dt><dd>{{ oil.km_since_change | km }}</dd></div>
+      <div><dt>Use per 1000 km</dt><dd>{% if oil.consumption_l_per_1000km is not none %}{{ oil.consumption_l_per_1000km | num(2) }} L{% else %}–{% endif %}</dd></div>
+    </dl>
+  </section>
+</div>
+
+<section class="card">
+  <h2>History</h2>
+  {% if entries %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Date</th><th>Odometer</th><th class="r">Litres</th><th>Oil</th><th class="r">Cost</th><th></th></tr></thead>
+      <tbody>
+      {% for e in entries %}
+        <tr>
+          <td>{{ e.added_on | date }}</td>
+          <td>{{ e.odometer_km | km }}</td>
+          <td class="r">{{ e.amount_l | num(2) }}</td>
+          <td>{{ e.oil_spec or "" }}{% if e.notes %}<br><span class="muted small">{{ e.notes }}</span>{% endif %}</td>
+          <td class="r">{{ money(e.cost) }}</td>
+          <td class="r">{{ delete_button("/vehicles/%d/oil/%d/delete" % (vehicle.id, e.id), "this oil entry") }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}<p class="muted">No oil logged yet.</p>{% endif %}
+</section>
+{% endblock %}

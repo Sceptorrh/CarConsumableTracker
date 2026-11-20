@@ -17,8 +17,9 @@ cost, in a self-hosted app that Home Assistant (HA) can read from and react to.
 | 7 | Maintenance records: category, title, cost, garage, optional *next due date / km* (stored only) | ✅ API |
 | 8 | Status per vehicle: latest tread depth per wheel + minimum, oil added since last change + L/1000 km, latest maintenance per category (incl. next-due values), costs (total, this year, per category) – facts only, no judgements | ✅ API |
 | 9 | Home Assistant: REST sensors on `/status`, push odometer in, webhook events out | ✅ API + example package |
-| 10 | Web UI (mobile-friendly) to enter records in the garage / at the pump | ⏳ next |
-| 11 | CSV export of all records | ⏳ next |
+| 10 | Web UI (mobile-friendly) to enter records in the garage / at the pump | ✅ |
+| 11 | Hosting on unRAID: CI-built image, scoped auto-update | ✅ |
+| 12 | CSV export of all records | ⏳ next |
 
 Out of MVP: multiple users, photos/receipts, fuel/charging log, reports & charts.
 
@@ -38,7 +39,12 @@ Out of MVP: multiple users, photos/receipts, fuel/charging log, reports & charts
   so a future HA custom integration can reuse the same models/know-how.
 * **Storage:** SQLite in a Docker volume (one file, easy backups). `CCT_DATABASE_URL` can point
   to PostgreSQL later without code changes.
-* **API first:** everything (UI, HA, scripts) uses the same REST API; OpenAPI docs at `/docs`.
+* **One container:** the web UI is server-rendered (Jinja templates, plain forms, no JS build)
+  and calls the same service layer as the REST API, so both trigger the same odometer updates
+  and Home Assistant events. OpenAPI docs at `/docs`.
+* **Hosting:** Docker container on unRAID next to the HA VM, image built by GitHub Actions and
+  published to GHCR, updated by a Watchtower instance scoped to this container only. See
+  [DEPLOY-UNRAID.md](DEPLOY-UNRAID.md).
 * **Units:** km, litres, mm; money as decimal in one configured currency.
 
 ### Data model
@@ -77,11 +83,11 @@ Design choices:
 
 ## Roadmap after the MVP
 
-1. **Web UI** – server-rendered (Jinja + htmx) or a small SPA; mobile-first entry forms.
-2. **MQTT publisher with HA MQTT discovery** – devices/entities appear in HA automatically,
+1. **MQTT publisher with HA MQTT discovery** – devices/entities appear in HA automatically,
    no YAML. Fits in as another `Publisher`.
-3. **HA custom integration (HACS)** – config flow, a device per vehicle, and HA services like
+2. **HA custom integration (HACS)** – config flow, a device per vehicle, and HA services like
    `cct.add_oil` / `cct.add_tread_measurement` so records can be added from HA dashboards/NFC tags.
-4. Tread wear prediction (mm per 1000 km → expected replacement date/km).
-5. Per-tyre tracking & rotations, tyre age (from DOT code) exposed for HA.
-6. Attachments (invoices/photos), CSV import/export, fuel/charging log, multi-user.
+3. Tread wear prediction (mm per 1000 km → expected replacement date/km).
+4. Per-tyre tracking & rotations, tyre age (from DOT code) exposed for HA.
+5. Attachments (invoices/photos), CSV import/export, fuel/charging log, multi-user.
+6. Optional login for the web UI (needed only if it is ever exposed outside the LAN).

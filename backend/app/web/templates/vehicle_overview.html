@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% from "macros.html" import type_badge, wheels, number %}
+{% block title %}{{ vehicle.name }}{% endblock %}
+{% block content %}
+{% include "_vehicle_header.html" %}
+
+<div class="card-grid">
+  <section class="card">
+    <h2>Odometer</h2>
+    <p class="big">{{ vehicle.odometer_km | km }}</p>
+    <form method="post" action="/vehicles/{{ vehicle.id }}/odometer" class="inline-form">
+      <input type="number" name="odometer_km" min="0" step="1" inputmode="numeric" required
+             placeholder="New reading" aria-label="New odometer reading in km">
+      <button class="btn" type="submit">Update</button>
+    </form>
+    {% if readings %}
+    <ul class="mini-list">
+      {% for r in readings %}<li><span>{{ r.recorded_on | date }}</span><span>{{ r.odometer_km | km }}</span><span class="muted">{{ r.source.value }}</span></li>{% endfor %}
+    </ul>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <h2>Mounted tyres</h2>
+      {% if status.tyres %}{{ type_badge(status.tyres.tyre_type) }}{% endif %}
+    </div>
+    {% if status.tyres %}
+      <p class="muted small">{{ status.tyres.name }} · measured {{ status.tyres.last_measured_on | date }}</p>
+      {{ wheels(status.tyres.depths_mm, ROAD_WHEELS) }}
+      <a class="btn" href="/vehicles/{{ vehicle.id }}/tyres/{{ status.tyres.tyre_set_id }}/measure">Measure tread</a>
+    {% else %}
+      <p class="muted">No tyre set mounted.</p>
+      <a class="btn" href="/vehicles/{{ vehicle.id }}/tyres">Manage tyres</a>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h2>Oil</h2>
+    <dl class="stats">
+      <div><dt>Added since change</dt><dd>{{ status.oil.added_since_change_l | num(2) }} L</dd></div>
+      <div><dt>Last change</dt><dd>{{ status.oil.last_change_on | date }}</dd></div>
+      <div><dt>Km since change</dt><dd>{{ status.oil.km_since_change | km }}</dd></div>
+      <div><dt>Use per 1000 km</dt><dd>{% if status.oil.consumption_l_per_1000km is not none %}{{ status.oil.consumption_l_per_1000km | num(2) }} L{% else %}–{% endif %}</dd></div>
+    </dl>
+    <a class="btn" href="/vehicles/{{ vehicle.id }}/oil">Log oil</a>
+  </section>
+
+  <section class="card">
+    <h2>Costs</h2>
+    <dl class="stats">
+      <div><dt>This year</dt><dd>{{ money(status.costs.this_year) }}</dd></div>
+      <div><dt>All time</dt><dd>{{ money(status.costs.total) }}</dd></div>
+    </dl>
+    {% if status.costs.by_category %}
+    <ul class="mini-list">
+      {% for cat, amount in status.costs.by_category | dictsort(by="value", reverse=true) %}
+        <li><span>{{ {"tyres": "Tyres", "oil_top_up": "Oil top-ups"}.get(cat) or (cat | label) }}</span><span>{{ money(amount) }}</span></li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </section>
+
+  <section class="card span-2">
+    <div class="card-head">
+      <h2>Latest maintenance</h2>
+      <a class="btn" href="/vehicles/{{ vehicle.id }}/maintenance/new">+ Add</a>
+    </div>
+    {% if status.maintenance %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Category</th><th>Last done</th><th>Next date</th><th>Next km</th></tr></thead>
+        <tbody>
+        {% for cat, m in status.maintenance.items() %}
+          <tr>
+            <td><strong>{{ cat | label }}</strong><br><span class="muted small">{{ m.title }}</span></td>
+            <td>{{ m.performed_on | date }}{% if m.odometer_km is not none %}<br><span class="muted small">{{ m.odometer_km | km }}</span>{% endif %}</td>
+            <td>{{ m.next_due_on | date }}</td>
+            <td>{{ m.next_due_km | km }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <p class="muted">No maintenance logged yet.</p>
+    {% endif %}
+  </section>
+</div>
+
+<p class="center small"><a href="/vehicles/{{ vehicle.id }}/edit">Edit vehicle details</a></p>
+{% endblock %}

@@ -42,7 +42,7 @@ services:
       WATCHTOWER_POLL_INTERVAL: ${CCT_UPDATE_INTERVAL:-3600}
       WATCHTOWER_CLEANUP: "true"          # remove the old image after updating
       WATCHTOWER_INCLUDE_RESTARTING: "true"
-      # Credentials for the private image on ghcr.io (leave empty if you made the package public).
+      # Only needed if the image on ghcr.io is private. Leave empty for the public image.
       REPO_USER: ${GHCR_USER:-}
       REPO_PASS: ${GHCR_TOKEN:-}
     labels:

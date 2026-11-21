@@ -3,10 +3,10 @@
 How it fits together:
 
 ```
- you / Claude ──push──► GitHub (private repo)
+ you / Claude ──push──► GitHub (public repo)
                           │  GitHub Actions: tests → Docker image
                           ▼
-                    ghcr.io/sceptorrh/carconsumabletracker:latest
+                    ghcr.io/sceptorrh/carconsumabletracker:latest   (public image)
                           ▲  pulled every hour (only this container)
  unRAID ──────────────────┤
    ├─ car-consumable-tracker          web UI + API on :8000, data in appdata
@@ -14,43 +14,33 @@ How it fits together:
    └─ VM: Home Assistant  ──REST──► :8000/api/v1/status   ◄──webhook── events
 ```
 
-Nothing on your server is reachable from the outside; unRAID only pulls.
+Nothing on your server is reachable from the outside; unRAID only pulls. The repository and
+the image are public, so no GitHub account or token is needed on unRAID.
 
-## 1. One-time GitHub setup
+## 1. GitHub (already done)
 
-1. **Create `main`.** Images are only published from the `main` branch (and from version
-   tags). Merge the work branch into `main` (or create `main` from it), and set `main` as the
-   default branch: *Settings → General → Default branch*.
-2. **Watch the first build.** *Actions* tab → workflow **CI**. Tests run first, then the image
-   is built and published. Afterwards it shows up under *Packages* on the repo page.
-3. **Give unRAID read access to the image.** The repo is private, so the image is too. Pick one:
-   - **Token (keeps it private):** GitHub → *Settings → Developer settings → Personal access
-     tokens → Tokens (classic)* → new token with **only `read:packages`**, no expiry or a long
-     one. (Fine-grained tokens can't read container packages.)
-   - **Public image:** package page → *Package settings → Change visibility → Public*. The
-     code stays private in the repo, but anyone could pull (and inspect) the image.
+- `main` is the default branch. Images are only published from `main` (and version tags).
+- The *Actions* tab → workflow **CI** shows every build; tests run before an image is built.
+- The image is public: repo page → *Packages* → **carconsumabletracker** → *Package settings*
+  → visibility **Public**. Check it from the unRAID terminal – this must work without logging in:
+  ```bash
+  docker pull ghcr.io/sceptorrh/carconsumabletracker:latest
+  ```
+  `denied` / `unauthorized` means the package is still private (see
+  [Private image](#private-image-optional) at the end).
 
 ## 2. unRAID
 
 1. **Install the Compose plugin:** *Apps* → search **Docker Compose Manager** → install.
-2. **Log in to GitHub's registry** (only for the token option). unRAID *Terminal*:
-   ```bash
-   docker login ghcr.io -u <your-github-username>
-   # paste the read:packages token as password
-   ```
-   unRAID keeps `/root` in RAM, so this login is forgotten after a reboot. That's fine: the
-   running container is unaffected and the updater uses its own credentials (below). Only
-   repeat it if you ever pull by hand after a reboot.
-3. **Create the stack:** *Docker* tab → bottom section **Compose** → **Add New Stack** →
+2. **Create the stack:** *Docker* tab → bottom section **Compose** → **Add New Stack** →
    name `car-consumable-tracker`.
    - ⚙ → **Edit Stack → Compose File**: paste [`docker-compose.yml`](../docker-compose.yml).
    - ⚙ → **Edit Stack → Env File**: paste [`.env.example`](../.env.example) and fill in:
      - `CCT_API_TOKEN` – any long random string (`openssl rand -hex 24` in the terminal)
      - `CCT_HA_WEBHOOK_URL` – `http://<HA-VM-IP>:8123/api/webhook/car_consumable_tracker`
-     - `GHCR_USER` / `GHCR_TOKEN` – your GitHub username and the `read:packages` token
-       (leave empty if you made the image public)
      - `CCT_PORT` – change if 8000 is already used on your server
-4. **Compose Up.** Open `http://<UNRAID-IP>:8000`.
+     - leave `GHCR_USER` / `GHCR_TOKEN` empty (only for a private image)
+3. **Compose Up.** Open `http://<UNRAID-IP>:8000`.
 
 Data lives in `/mnt/user/appdata/car-consumable-tracker/cct.db` – one SQLite file. Include
 it in your appdata backup (e.g. the *Appdata Backup* plugin).
@@ -89,6 +79,20 @@ Every build also has a `sha-<commit>` tag.
 - The updater needs the Docker socket (like every auto-updater). Its scope limits it to the
   `car-consumable-tracker` container; other containers and VMs are never touched. Don't want
   that? Remove the `cct-updater` service and use **Update Stack** manually.
+
+## Private image (optional)
+
+Only needed if you ever make the repository or package private again.
+
+1. GitHub → *Settings → Developer settings → Personal access tokens → Tokens (classic)* →
+   **Generate new token (classic)** with **only `read:packages`**
+   ([shortcut](https://github.com/settings/tokens/new?scopes=read:packages&description=unraid-car-consumable-tracker)).
+   Fine-grained tokens can't read container images.
+2. Put your GitHub username and the token in `GHCR_USER` / `GHCR_TOKEN` (used by the updater).
+3. unRAID terminal: `docker login ghcr.io -u <github-username>`, password = the token.
+   unRAID keeps `/root` in RAM, so this login is forgotten after a reboot; the running container
+   and the updater are unaffected, only a manual pull needs a fresh login.
+4. If the token expires, the updater logs pull errors and updates stop until you renew it.
 
 ## Alternative: plain unRAID template (no Compose plugin)
 
